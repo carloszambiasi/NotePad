@@ -1,0 +1,7 @@
+# Node backend
+note-api/node_modules/
+note-api/.env
+
+# Vue frontend
+note-app/node_modules/
+note-app/dist/
