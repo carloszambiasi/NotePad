@@ -1,17 +1,19 @@
 <template>
   <div>
     <h1>📝 Anotações</h1>
+
     <select v-model="note.courseId">
       <option disabled value="">Selecione o curso</option>
-      <option v-for="c in courses" :key="c.id" :value="c.id">{{ c.name }}</option>
+      <option v-for="c in courses" :key="c._id" :value="c._id">{{ c.name }}</option>
     </select>
+
     <input v-model="note.name" placeholder="Título da anotação" />
     <input v-model="note.duration" placeholder="Duração (ex: 30min)" />
     <textarea v-model="note.description" placeholder="Descrição da anotação"></textarea>
     <button @click="addNote">Adicionar Anotação</button>
 
     <ul>
-      <li v-for="n in notes" :key="n.id">
+      <li v-for="n in notes" :key="n._id">
         <strong>{{ getCourseName(n.courseId) }}</strong><br />
         {{ n.name }} - {{ n.duration }}<br />
         {{ n.description }}
@@ -21,30 +23,57 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 
-const note = ref({ courseId: '', name: '', duration: '', description: '' });
+const API_URL = 'http://localhost:5000';
+
+const note = ref({
+  courseId: '',
+  name: '',
+  duration: '',
+  description: ''
+});
+
 const notes = ref<any[]>([]);
 const courses = ref<any[]>([]);
 
-onMounted(() => {
-  const savedNotes = localStorage.getItem('notes');
-  const savedCourses = localStorage.getItem('courses');
-  if (savedNotes) notes.value = JSON.parse(savedNotes);
-  if (savedCourses) courses.value = JSON.parse(savedCourses);
+// Buscar cursos e notas ao carregar
+onMounted(async () => {
+  try {
+    const resCourses = await fetch(`${API_URL}/courses`);
+    courses.value = await resCourses.json();
+
+    const resNotes = await fetch(`${API_URL}/notes`);
+    notes.value = await resNotes.json();
+  } catch (err) {
+    console.error('Erro ao carregar dados:', err);
+  }
 });
 
-watch(notes, () => {
-  localStorage.setItem('notes', JSON.stringify(notes.value));
-}, { deep: true });
-
-function addNote() {
+async function addNote() {
   if (!note.value.courseId || !note.value.name || !note.value.duration || !note.value.description) return;
-  notes.value.unshift({ id: Date.now(), ...note.value });
-  note.value = { courseId: '', name: '', duration: '', description: '' };
+
+  try {
+    await fetch(`${API_URL}/notes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(note.value)
+    });
+
+    // Atualiza a lista
+    const resNotes = await fetch(`${API_URL}/notes`);
+    notes.value = await resNotes.json();
+
+    note.value = { courseId: '', name: '', duration: '', description: '' };
+  } catch (err) {
+    console.error('Erro ao adicionar anotação:', err);
+  }
 }
 
-function getCourseName(id: string) {
-  return courses.value.find(c => c.id == id)?.name || "Curso não encontrado";
+function getCourseName(courseId: string) {
+  const course = courses.value.find(c => c._id === courseId);
+  return course ? course.name : "Curso não encontrado";
 }
 </script>

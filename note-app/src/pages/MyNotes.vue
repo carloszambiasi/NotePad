@@ -23,14 +23,14 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="note in paginatedNotes" :key="note.id">
+        <tr v-for="note in paginatedNotes" :key="note._id">
           <td>{{ getCourseName(note.courseId) }}</td>
           <td>{{ note.name }}</td>
           <td>{{ note.duration }}</td>
-          <td>{{ formatDate(note.id) }}</td>
+          <td>{{ formatDate(note._id) }}</td>
           <td>
             <button @click="editNote(note)">Editar</button>
-            <button @click="deleteNote(note.id)">Excluir</button>
+            <button @click="deleteNote(note._id)">Excluir</button>
           </td>
         </tr>
       </tbody>
@@ -65,6 +65,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 
+const API_URL = 'http://localhost:5000';
+
 const notes = ref<any[]>([]);
 const courses = ref<any[]>([]);
 const showModal = ref(false);
@@ -74,25 +76,33 @@ const sortOrder = ref<'asc' | 'desc'>('desc');
 const currentPage = ref(1);
 const itemsPerPage = 20;
 
-onMounted(() => {
-  const savedNotes = localStorage.getItem("notes");
-  const savedCourses = localStorage.getItem("courses");
-  if (savedNotes) notes.value = JSON.parse(savedNotes);
-  if (savedCourses) courses.value = JSON.parse(savedCourses);
+onMounted(async () => {
+  await fetchNotes();
+  await fetchCourses();
 });
 
-function getCourseName(courseId: string) {
-  return courses.value.find(c => c.id === courseId)?.name || "Desconhecido";
+async function fetchNotes() {
+  const res = await fetch(`${API_URL}/notes`);
+  notes.value = await res.json();
 }
 
-function formatDate(timestamp: number) {
-  const date = new Date(timestamp);
+async function fetchCourses() {
+  const res = await fetch(`${API_URL}/courses`);
+  courses.value = await res.json();
+}
+
+function getCourseName(courseId: string) {
+  return courses.value.find(c => c._id === courseId)?.name || "Desconhecido";
+}
+
+function formatDate(id: string) {
+  const date = new Date(parseInt(id.substring(0, 8), 16) * 1000);
   return date.toLocaleDateString() + " " + date.toLocaleTimeString();
 }
 
-function deleteNote(id: number) {
-  notes.value = notes.value.filter(n => n.id !== id);
-  localStorage.setItem("notes", JSON.stringify(notes.value));
+async function deleteNote(id: string) {
+  await fetch(`${API_URL}/notes/${id}`, { method: 'DELETE' });
+  await fetchNotes();
   if (currentPage.value > totalPages.value) currentPage.value = totalPages.value;
 }
 
@@ -101,27 +111,29 @@ function editNote(note: any) {
   showModal.value = true;
 }
 
-function saveEdit() {
-  const index = notes.value.findIndex(n => n.id === editData.value.id);
-  if (index !== -1) {
-    notes.value[index] = { ...editData.value };
-    localStorage.setItem("notes", JSON.stringify(notes.value));
-    showModal.value = false;
-  }
+async function saveEdit() {
+  const { _id, ...data } = editData.value;
+  await fetch(`${API_URL}/notes/${_id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  await fetchNotes();
+  showModal.value = false;
 }
 
 function cancelEdit() {
   showModal.value = false;
 }
 
-// Ordenação
 const sortedNotes = computed(() => {
-  return [...notes.value].sort((a, b) =>
-    sortOrder.value === 'asc' ? a.id - b.id : b.id - a.id
-  );
+  return [...notes.value].sort((a, b) => {
+    const aTime = parseInt(a._id.substring(0, 8), 16);
+    const bTime = parseInt(b._id.substring(0, 8), 16);
+    return sortOrder.value === 'asc' ? aTime - bTime : bTime - aTime;
+  });
 });
 
-// Paginação
 const totalPages = computed(() =>
   Math.ceil(sortedNotes.value.length / itemsPerPage)
 );
@@ -156,7 +168,6 @@ const paginatedNotes = computed(() => {
   background-color: crimson;
 }
 
-/* Filtros e paginação */
 .filters {
   margin-bottom: 1rem;
 }
@@ -166,8 +177,6 @@ const paginatedNotes = computed(() => {
   gap: 1rem;
   margin-top: 1rem;
 }
-
-/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;

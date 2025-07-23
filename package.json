@@ -1,0 +1,22 @@
+{
+  "name": "notepad",
+  "version": "1.0.0",
+  "description": "- Vue 3 + Vite\r - Sistema de anotações com curso, duração e descrição\r - Suporte a edição, ordenação e paginação\r - Conecta ao backend com Axios",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "concurrently \"cd note-api && node server.js\" \"cd note-app && npm run dev\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carloszambiasi/NotePad.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/carloszambiasi/NotePad/issues"
+  },
+  "homepage": "https://github.com/carloszambiasi/NotePad#readme"
+}

@@ -6,33 +6,49 @@
     <button @click="addCourse">Adicionar Curso</button>
 
     <ul>
-      <li v-for="c in courses" :key="c.id">{{ c.name }} - {{ c.duration }}</li>
+      <li v-for="c in courses" :key="c._id">{{ c.name }} - {{ c.duration }}</li>
     </ul>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
+
+// ✅ URL da API
+const API_URL = 'http://localhost:5000';
 
 const course = ref({ name: '', duration: '' });
-const courses = ref<{ id: number; name: string; duration: string }[]>([]);
+const courses = ref<{ _id: string; name: string; duration: string }[]>([]);
 
-onMounted(() => {
-  const saved = localStorage.getItem('courses');
-  if (saved) courses.value = JSON.parse(saved);
-});
-
-watch(courses, () => {
-  localStorage.setItem('courses', JSON.stringify(courses.value));
-}, { deep: true });
-
-function addCourse() {
-  if (!course.value.name || !course.value.duration) return;
-  courses.value.unshift({
-    id: Date.now(),
-    name: course.value.name,
-    duration: course.value.duration
-  });
-  course.value = { name: '', duration: '' };
+// 🔽 Buscar cursos do backend
+async function fetchCourses() {
+  try {
+    const res = await fetch(`${API_URL}/courses`);
+    courses.value = await res.json();
+  } catch (err) {
+    console.error('Erro ao buscar cursos:', err);
+  }
 }
+
+// 🔼 Adicionar curso no backend
+async function addCourse() {
+  if (!course.value.name || !course.value.duration) return;
+
+  try {
+    await fetch(`${API_URL}/courses`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(course.value)
+    });
+
+    course.value = { name: '', duration: '' };
+    fetchCourses(); // Atualiza a lista
+  } catch (err) {
+    console.error('Erro ao adicionar curso:', err);
+  }
+}
+
+onMounted(fetchCourses);
 </script>
